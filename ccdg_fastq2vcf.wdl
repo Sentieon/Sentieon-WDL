@@ -279,7 +279,7 @@ task SentieonFastqToVcf {
     first_fastq+=(${sep=" " file_fastq_r1s})
     second_fastq+=(${sep=" " file_fastq_r2s})
     read_groups=('${sep="' '" read_groups}')
-    if [[ ${dollar}{#first_fastq[@]} -ne ${dollar}{#read_groups[@]} ]]; then
+    if [[ ${dollar}{#first_fastq[@]} -ne ${dollar}{#second_fastq[@]} ]]; then
       echo "The number of fastq files for r1 does not equal the number for r2"
       exit 1
     fi

@@ -48,14 +48,14 @@ workflow sentieon_ccdg_fastq_vcf {
   String calling_driver_args = ""
   String genotyping_driver_args = ""
   ## Extra algo parameters
-  String bwa_args = "-Y"
+  String bwa_args = "-Y -h 0,0"
   String bwa_chunk_size = "10000000"
   String sort_args = "--block_size 512M --bam_compression 1"
   String lc_args = ""
   String dedup_args = ""
   String readwriter_args = "--cram_write_options version=3.0,compressor=rans"
   String bqsr_args = ""
-  String calling_args = ""
+  String calling_args = "--emit_conf 10 --call_conf 10"
   String genotyping_args = ""
   ## Alignment file formats
   Boolean alignment_cram = false
@@ -159,6 +159,18 @@ workflow sentieon_ccdg_fastq_vcf {
     File gvcf_index = SentieonFastqToVcf.gvcf_index
     File vcf = SentieonFastqToVcf.vcf
     File vcf_index = SentieonFastqToVcf.vcf_index
+    File flagstat = SentieonFastqToVcf.flagstat
+    File dedup_metrics = SentieonFastqToVcf.dedup_metrics
+    File mq_metrics = SentieonFastqToVcf.mq_metrics
+    File mq_plot = SentieonFastqToVcf.mq_plot
+    File qd_metrics = SentieonFastqToVcf.qd_metrics
+    File qd_plot = SentieonFastqToVcf.qd_plot
+    File gc_summary = SentieonFastqToVcf.gc_summary
+    File gc_metrics = SentieonFastqToVcf.gc_metrics
+    File gc_plot = SentieonFastqToVcf.gc_plot
+    File as_metrics = SentieonFastqToVcf.as_metrics
+    File is_metrics = SentieonFastqToVcf.is_metrics
+    File is_plot = SentieonFastqToVcf.is_plot
   }
 }
 
@@ -312,17 +324,27 @@ task SentieonFastqToVcf {
 
     export LD_PRELOAD=${sentieon_release_dir}/lib/libjemalloc.so
 
-    # Dedup
+    # Dedup and metrics
     bam_input=""
     for f in ${dollar}{aligned_data[@]}; do
       bam_input="$bam_input -i $f"
     done
-    sentieon driver ${lc_driver_args} -t ${threads} $bam_input --algo LocusCollector ${lc_args} ${sample_name}_score.txt
-    sentieon driver ${dedup_driver_args} -t ${threads} $bam_input --algo Dedup ${dedup_args} --score_info ${sample_name}_score.txt --output_dup_read_name ${sample_name}_dup_qname.txt
+    sentieon driver ${lc_driver_args} -t ${threads} $bam_input -r ${ref_fasta} --algo LocusCollector ${lc_args} ${sample_name}_score.txt --algo MeanQualityByCycle ${sample_name}_mq_metrics.txt --algo QualDistribution ${sample_name}_qd_metrics.txt --algo GCBias --summary ${sample_name}_gc_summary.txt ${sample_name}_gc_metrics.txt --algo AlignmentStat --adapter_seq '' ${sample_name}_aln_metrics.txt --algo InsertSizeMetricAlgo ${sample_name}_is_metrics.txt
+    sentieon driver ${dedup_driver_args} -t ${threads} $bam_input --algo Dedup ${dedup_args} --metrics ${sample_name}_dedup_metrics.txt --score_info ${sample_name}_score.txt --output_dup_read_name ${sample_name}_dup_qname.txt
     sentieon driver ${dedup_driver_args} -t ${threads} $bam_input --algo Dedup ${dedup_args} --dup_read_name ${sample_name}_dup_qname.txt ${sample_name}_deduped.${true="cram" false="bam" dedup_cram}
     for f in ${dollar}{aligned_data[@]}; do
       rm "$f" &
     done
+    
+    # Plot metrics - no need to add to $wait_list, runtime for each is only a few seconds
+    sentieon plot GCBias -o ${sample_name}_gc-report.pdf ${sample_name}_gc_metrics.txt &
+    sentieon plot QualDistribution -o ${sample_name}_qd-report.pdf ${sample_name}_qd_metrics.txt &
+    sentieon plot MeanQualityByCycle -o ${sample_name}_mq-report.pdf ${sample_name}_mq_metrics.txt &
+    sentieon plot InsertSizeMetricAlgo -o ${sample_name}_is-report.pdf ${sample_name}_is_metrics.txt &
+    
+    # SAMtools flagstat
+    samtools flagstat ${sample_name}_deduped.${true="cram" false="bam" dedup_cram} > ${sample_name}_flagstat.txt &
+    wait_list+=($!)
 
     # BQSR
     # Group the known sites files with their indicies
@@ -397,5 +419,17 @@ task SentieonFastqToVcf {
     File gvcf_index = "${sample_name}_${calling_algo}.g.vcf.gz.tbi"
     File vcf = "${sample_name}_${calling_algo}.vcf.gz"
     File vcf_index = "${sample_name}_${calling_algo}.vcf.gz.tbi"
+    File flagstat = "${sample_name}_flagstat.txt"
+    File dedup_metrics = "${sample_name}_dedup_metrics.txt"
+    File mq_metrics = "${sample_name}_mq_metrics.txt"
+    File mq_plot = "${sample_name}_mq-report.pdf"
+    File qd_metrics = "${sample_name}_qd_metrics.txt"
+    File qd_plot = "${sample_name}_qd-report.pdf"
+    File gc_summary = "${sample_name}_gc_summary.txt"
+    File gc_metrics = "${sample_name}_gc_metrics.txt"
+    File gc_plot = "${sample_name}_gc-report.pdf"
+    File as_metrics = "${sample_name}_aln_metrics.txt"
+    File is_metrics = "${sample_name}_is_metrics.txt"
+    File is_plot = "${sample_name}_is-report.pdf"
   }
 }

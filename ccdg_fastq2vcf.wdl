@@ -318,7 +318,7 @@ task SentieonFastqToVcf {
       i=$((i - 1))
       LD_PRELOAD=${sentieon_release_dir}/lib/libjemalloc.so sentieon bwa mem -t ${threads} ${bwa_args} -K ${bwa_chunk_size} -R "${dollar}{read_groups[$i]}" ${ref_fasta} <(gsutil cp ${dollar}{first_fastq[$i]} -) <(gsutil cp ${dollar}{second_fastq[$i]} -) | \
         samblaster --addMateTags -a | \
-        LD_PRELOAD=${sentieon_release_dir}/lib/libjemalloc.so sentieon util sort ${sort_args} -t ${threads} -i - --sam2bam -o ${sample_name}_sorted_${dollar}{i}.${true="cram" false="bam" alignment_cram}
+        LD_PRELOAD=${sentieon_release_dir}/lib/libjemalloc.so sentieon util sort ${sort_args} -t ${threads} -i - --sam2bam -r ${ref_fasta} -o ${sample_name}_sorted_${dollar}{i}.${true="cram" false="bam" alignment_cram}
       aligned_data+=(${sample_name}_sorted_${dollar}{i}.${true="cram" false="bam" alignment_cram})
     done
 
@@ -330,8 +330,8 @@ task SentieonFastqToVcf {
       bam_input="$bam_input -i $f"
     done
     sentieon driver ${lc_driver_args} -t ${threads} $bam_input -r ${ref_fasta} --algo LocusCollector ${lc_args} ${sample_name}_score.txt --algo MeanQualityByCycle ${sample_name}_mq_metrics.txt --algo QualDistribution ${sample_name}_qd_metrics.txt --algo GCBias --summary ${sample_name}_gc_summary.txt ${sample_name}_gc_metrics.txt --algo AlignmentStat --adapter_seq '' ${sample_name}_aln_metrics.txt --algo InsertSizeMetricAlgo ${sample_name}_is_metrics.txt
-    sentieon driver ${dedup_driver_args} -t ${threads} $bam_input --algo Dedup ${dedup_args} --metrics ${sample_name}_dedup_metrics.txt --score_info ${sample_name}_score.txt --output_dup_read_name ${sample_name}_dup_qname.txt
-    sentieon driver ${dedup_driver_args} -t ${threads} $bam_input --algo Dedup ${dedup_args} --dup_read_name ${sample_name}_dup_qname.txt ${sample_name}_deduped.${true="cram" false="bam" dedup_cram}
+    sentieon driver ${dedup_driver_args} -t ${threads} $bam_input -r ${ref_fasta} --algo Dedup ${dedup_args} --metrics ${sample_name}_dedup_metrics.txt --score_info ${sample_name}_score.txt --output_dup_read_name ${sample_name}_dup_qname.txt
+    sentieon driver ${dedup_driver_args} -t ${threads} $bam_input -r ${ref_fasta} --algo Dedup ${dedup_args} --dup_read_name ${sample_name}_dup_qname.txt ${sample_name}_deduped.${true="cram" false="bam" dedup_cram}
     for f in ${dollar}{aligned_data[@]}; do
       rm "$f" &
     done

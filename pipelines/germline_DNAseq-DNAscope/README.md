@@ -6,7 +6,7 @@ The pipeline is tested with [Cromwell](https://github.com/broadinstitute/cromwel
 ```sh
 java -Dconfig.file=<cromwell.config> -jar cromwell-83.jar run -i <inputs.json> <germline_fastqToVcf.wdl>
 ```
-We provide an example `inputs.json` file in the [germline_fastqToVcf.example_inputs.json](/germline_fastqToVcf.example_inputs.json) file in this repository.
+We provide an example `inputs.json` file in the [germline_fastqToVcf.example_inputs.json](germline_fastqToVcf.example_inputs.json) file in this repository.
 
 For more information on WDL, please see https://openwdl.org/.
 

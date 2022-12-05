@@ -23,6 +23,15 @@ RUN apt-get update && apt-get install -y curl autoconf libtool binutils make nas
     ./configure --prefix=/usr --libdir=/usr/lib && \
     make install
 
+# Install samtools
+RUN apt-get update && apt-get install -y bzip2 curl autoconf automake make gcc perl zlib1g-dev libbz2-dev liblzma-dev libcurl4-gnutls-dev libssl-dev libncurses5-dev && \
+    mkdir -p /opt/samtools && \
+    curl -L "https://github.com/samtools/samtools/releases/download/1.16.1/samtools-1.16.1.tar.bz2" | \
+    tar -jxf - -C /opt/samtools && \
+    cd /opt/samtools/samtools-1.16.1/ && \
+    ./configure && \
+    make install
+
 # Build the container
 FROM debian:bullseye-20220328-slim
 ARG SENTIEON_VERSION
@@ -36,13 +45,22 @@ COPY --from=downloader /usr/lib/libisal.so.2.0.30 /usr/lib/libisal.so.2.0.30
 COPY --from=downloader /usr/lib/libisal.so.2 /usr/lib/libisal.so.2
 COPY --from=downloader /usr/lib/libisal.so /usr/lib/libisal.so
 COPY --from=downloader /usr/lib/libisal.la /usr/lib/libisal.la
+COPY --from=downloader /usr/local/bin/samtools /usr/local/bin/samtools
+
 CMD ["/bin/bash"]
 
 # Install jemalloc as the recommended memory allocation tool, see https://support.sentieon.com/appnotes/jemalloc/
 # Install procps for process monitoring
+# Install samtools shared libraries
 RUN apt-get update && apt-get install -y \
     libjemalloc2 \
     procps \
+    zlib1g-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libcurl4-gnutls-dev \
+    libssl-dev \
+    libncurses5-dev \
     tini \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -55,6 +73,7 @@ ENV MALLOC_CONF=metadata_thp:auto,background_thread:true,dirty_decay_ms:30000,mu
 
 # Test the container
 RUN sentieon driver --help && \
-    igzip --help
+    igzip --help && \
+    samtools --help
 
 ENTRYPOINT ["/usr/bin/tini" , "--"]

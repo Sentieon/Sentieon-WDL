@@ -28,5 +28,5 @@
   ],
   "sentieon_germline.dbsnp_vcf": "sentieon_quickstart/reference/dbsnp_135.hg19_chr22.vcf.gz",
   "sentieon_germline.dbsnp_vcf_tbi": "sentieon_quickstart/reference/dbsnp_135.hg19_chr22.vcf.gz.tbi",
-  "sentieon_germline.sentieon_docker": "sentieon-wdl-docker"
+  "sentieon_germline.sentieon_docker": "sentieon/sentieon-wdl:latest"
 }

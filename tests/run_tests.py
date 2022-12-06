@@ -10,12 +10,12 @@ base_cmd = "java -Dconfig.file={cromwell_config} -jar {cromwell} run -i {inputs_
 
 base_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 wdl_files = {
-    "germline_fastq": f"{base_dir}/pipelines/germline_fastqToVcf.wdl",
-    "germline_fastq_split": f"{base_dir}/pipelines/germline_fastqToVcf_split.wdl",
+    "germline_fastq": f"{base_dir}/pipelines/germline_DNAseq-DNAscope/germline_fastqToVcf.wdl",
+    "germline_fastq_split": f"{base_dir}/pipelines/germline_DNAseq-DNAscope/germline_fastqToVcf_split.wdl",
 }
 
 input_jsons = {
-    "germline_fastq": f"{base_dir}/pipelines/germline_fastqToVcf.example_inputs.json"
+    "germline_fastq": f"{base_dir}/pipelines/germline_DNAseq-DNAscope/germline_fastqToVcf.example_inputs.json"
 }
 
 QUICKSTART_URL = "https://s3.amazonaws.com/sentieon-release/other/sentieon_quickstart.tar.gz"
@@ -66,7 +66,7 @@ def test_germline_fastq(downloaded_quickstart):
         test_json.close()
         d = downloaded_quickstart
         d["sentieon_germline.sentieon_license_server"] = os.environ["SENTIEON_LICENSE"]
-        d["sentieon_germline.sentieon_docker"] = "wdl-docker"
+        d["sentieon_germline.sentieon_docker"] = "sentieon/sentieon-wdl:latest"
         json.dump(d, open(test_json.name, 'w'))
 
         d = {
@@ -88,7 +88,7 @@ def test_germline_fastq_gvcf(downloaded_quickstart):
         test_json.close()
         d = downloaded_quickstart
         d["sentieon_germline.sentieon_license_server"] = os.environ["SENTIEON_LICENSE"]
-        d["sentieon_germline.sentieon_docker"] = "wdl-docker"
+        d["sentieon_germline.sentieon_docker"] = "sentieon/sentieon-wdl:latest"
         d["sentieon_germline.output_gvcf"] = True
         json.dump(d, open(test_json.name, 'w'))
 
@@ -112,7 +112,7 @@ def test_germline_fastq_dnascope(downloaded_quickstart, downloaded_model):
         d = downloaded_quickstart
         d.update(downloaded_model)
         d["sentieon_germline.sentieon_license_server"] = os.environ["SENTIEON_LICENSE"]
-        d["sentieon_germline.sentieon_docker"] = "wdl-docker"
+        d["sentieon_germline.sentieon_docker"] = "sentieon/sentieon-wdl:latest"
         d["sentieon_germline.output_gvcf"] = True
         json.dump(d, open(test_json.name, 'w'))
 

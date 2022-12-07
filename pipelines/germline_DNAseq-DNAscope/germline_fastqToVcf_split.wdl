@@ -220,8 +220,7 @@ workflow sentieon_germline {
         sentieon_docker = sentieon_docker,
     }
 
-    if (defined(dnascope_model)) {
-      # DNAModelApply is a no-op if calling_algo != 'DNAscope'
+    if (defined(dnascope_model) && calling_algo == "DNAscope") {
       call Calling.DNAModelApply {
         input:
           vcf = GermlineCalling.calls_vcf,

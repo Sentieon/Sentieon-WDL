@@ -61,71 +61,60 @@ def downloaded_model():
     }
     return d
 
+def set_licsrvr_docker():
+    d = {
+        "sentieon_germline.sentieon_license_server": os.environ["SENTIEON_LICENSE"],
+        "sentieon_germline.sentieon_docker": "sentieon/sentieon-wdl:latest",
+    }
+    return d
+
+def gen_command(wdl, json_fn):
+    d = {
+        "wdl": wdl,
+        "inputs_json": json_fn,
+        "cromwell_config": os.environ["CROMWELL_CONFIG"],
+        "cromwell": os.environ["CROMWELL_JAR"],
+    }
+    return base_cmd.format(**d)
+
+
 def test_germline_fastq(downloaded_quickstart):
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as test_json:
         test_json.close()
-        d = downloaded_quickstart
-        d["sentieon_germline.sentieon_license_server"] = os.environ["SENTIEON_LICENSE"]
-        d["sentieon_germline.sentieon_docker"] = "sentieon/sentieon-wdl:latest"
+        d = {**downloaded_quickstart, **set_licsrvr_docker()}
         json.dump(d, open(test_json.name, 'w'))
 
-        d = {
-            "wdl": wdl_files["germline_fastq"],
-            "inputs_json": test_json.name,
-            "cromwell_config": os.environ["CROMWELL_CONFIG"],
-            "cromwell": os.environ["CROMWELL_JAR"],
-        }
-        cmd = base_cmd.format(**d)
+        cmd = gen_command(wdl_files["germline_fastq"], test_json.name)
         subprocess.run(cmd, shell=True, check=True)
 
-        d.update({"wdl": wdl_files["germline_fastq_split"]})
-        cmd = base_cmd.format(**d)
+        cmd = gen_command(wdl_files["germline_fastq_split"], test_json.name)
         subprocess.run(cmd, shell=True, check=True)
         os.unlink(test_json.name)
 
 def test_germline_fastq_gvcf(downloaded_quickstart):
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as test_json:
         test_json.close()
-        d = downloaded_quickstart
-        d["sentieon_germline.sentieon_license_server"] = os.environ["SENTIEON_LICENSE"]
-        d["sentieon_germline.sentieon_docker"] = "sentieon/sentieon-wdl:latest"
+        d = {**downloaded_quickstart, **set_licsrvr_docker()}
         d["sentieon_germline.output_gvcf"] = True
         json.dump(d, open(test_json.name, 'w'))
 
-        d = {
-            "wdl": wdl_files["germline_fastq"],
-            "inputs_json": test_json.name,
-            "cromwell_config": os.environ["CROMWELL_CONFIG"],
-            "cromwell": os.environ["CROMWELL_JAR"],
-        }
-        cmd = base_cmd.format(**d)
+        cmd = gen_command(wdl_files["germline_fastq"], test_json.name)
         subprocess.run(cmd, shell=True, check=True)
 
-        d.update({"wdl": wdl_files["germline_fastq_split"]})
-        cmd = base_cmd.format(**d)
+        cmd = gen_command(wdl_files["germline_fastq_split"], test_json.name)
         subprocess.run(cmd, shell=True, check=True)
         os.unlink(test_json.name)
 
 def test_germline_fastq_dnascope(downloaded_quickstart, downloaded_model):
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as test_json:
         test_json.close()
-        d = downloaded_quickstart
-        d.update(downloaded_model)
-        d["sentieon_germline.sentieon_license_server"] = os.environ["SENTIEON_LICENSE"]
-        d["sentieon_germline.sentieon_docker"] = "sentieon/sentieon-wdl:latest"
+        d = {**downloaded_quickstart, **downloaded_model, **set_licsrvr_docker()}
         d["sentieon_germline.output_gvcf"] = True
         json.dump(d, open(test_json.name, 'w'))
 
-        d = {
-            "wdl": wdl_files["germline_fastq"],
-            "inputs_json": test_json.name,
-            "cromwell_config": os.environ["CROMWELL_CONFIG"],
-            "cromwell": os.environ["CROMWELL_JAR"],
-        }
-        cmd = base_cmd.format(**d)
+        cmd = gen_command(wdl_files["germline_fastq"], test_json.name)
         subprocess.run(cmd, shell=True, check=True)
 
-        d.update({"wdl": wdl_files["germline_fastq_split"]})
-        cmd = base_cmd.format(**d)
+        cmd = gen_command(wdl_files["germline_fastq_split"], test_json.name)
         subprocess.run(cmd, shell=True, check=True)
         os.unlink(test_json.name)

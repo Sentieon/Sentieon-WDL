@@ -1,0 +1,30 @@
+{
+  "sentieon_germline.bam": [
+    "sentieon_quickstart/sorted.bam"
+  ],
+  "sentieon_germline.bam_index": [
+    "sentieon_quickstart/sorted.bam.bai"
+  ],
+  "sentieon_germline.ref_fasta": "sentieon_quickstart/reference/ucsc.hg19_chr22.fasta",
+  "sentieon_germline.ref_fai": "sentieon_quickstart/reference/ucsc.hg19_chr22.fasta.fai",
+  "sentieon_germline.ref_amb": "sentieon_quickstart/reference/ucsc.hg19_chr22.fasta.amb",
+  "sentieon_germline.ref_ann": "sentieon_quickstart/reference/ucsc.hg19_chr22.fasta.ann",
+  "sentieon_germline.ref_bwt": "sentieon_quickstart/reference/ucsc.hg19_chr22.fasta.bwt",
+  "sentieon_germline.ref_pac": "sentieon_quickstart/reference/ucsc.hg19_chr22.fasta.pac",
+  "sentieon_germline.ref_sa": "sentieon_quickstart/reference/ucsc.hg19_chr22.fasta.sa",
+  "sentieon_germline.sentieon_license_server": "<licsrvr_fqdn>:<licsrvr_port>",
+  "sentieon_germline.bqsr_vcfs": [
+    "sentieon_quickstart/reference/1000G_phase1.snps.high_confidence.hg19_chr22.sites.vcf.gz",
+    "sentieon_quickstart/reference/dbsnp_135.hg19_chr22.vcf.gz",
+    "sentieon_quickstart/reference/Mills_and_1000G_gold_standard.indels.hg19_chr22.sites.vcf.gz"
+  ],
+  "sentieon_germline.bqsr_vcf_tbis": [
+    "sentieon_quickstart/reference/1000G_phase1.snps.high_confidence.hg19_chr22.sites.vcf.gz.tbi",
+    "sentieon_quickstart/reference/dbsnp_135.hg19_chr22.vcf.gz.tbi",
+    "sentieon_quickstart/reference/Mills_and_1000G_gold_standard.indels.hg19_chr22.sites.vcf.gz.tbi"
+  ],
+  "sentieon_germline.dbsnp_vcf": "sentieon_quickstart/reference/dbsnp_135.hg19_chr22.vcf.gz",
+  "sentieon_germline.dbsnp_vcf_tbi": "sentieon_quickstart/reference/dbsnp_135.hg19_chr22.vcf.gz.tbi",
+  "sentieon_germline.sentieon_docker": "sentieon/sentieon-wdl:latest"
+}
+

@@ -8,20 +8,20 @@ import "../../tasks/variant_calling.wdl" as Calling
 
 workflow sentieon_germline {
   input {
-    # Input fastq files
-    Array[File] r1_fastq
-    Array[File] r2_fastq
-    Array[String] read_groups
+    # Input BAM files
+    Array[File] bam
+    Array[File] bam_index
+    File? bqsr_table
 
     # Reference genome files
     File ref_fasta
     File ref_fai
     File? ref_alt
-    File ref_bwt
-    File ref_sa
-    File ref_amb
-    File ref_ann
-    File ref_pac
+    File? ref_bwt
+    File? ref_sa
+    File? ref_amb
+    File? ref_ann
+    File? ref_pac
 
     # Known sites VCFs
     Array[File] bqsr_vcfs
@@ -35,25 +35,37 @@ workflow sentieon_germline {
 
     # Workflow arguments
     String sample_name = "sample"
+    ## Realignment with BWA
+    Boolean realign_input = false # Realign the input BAM file with BWA
+    ## Dedup and merged BAM output
+    Boolean run_dedup_and_qc = false # Mark duplicates and perform QC in addition to alignment
     Boolean output_cram = true
-    Boolean run_dedup_and_qc = true # Mark duplicates and perform QC in addition to alignment
-    Boolean run_bqsr = true # Calibrate a BQSR model and use it during variant calling
+    ## Run an optional ReadWriter step
+    Boolean run_readwriter = false
+    ## BQSR
+    Boolean run_bqsr = false # Calibrate a BQSR model and use it during variant calling
+    ## Variant calling
     Boolean run_calling = true # Run variant calling
     String calling_algo = "Haplotyper"
     Boolean output_gvcf = false
 
     # Optional process arguments
+    ## Realignment with BWA
+    String fastq_xargs = ""
     String bwa_xargs = ""
     String bwa_karg = "10000000"
     String sort_xargs = "--bam_compression 1"
+    ## Dedup and merged BAM output
     String lc_xargs = ""
     String dedup_xargs = "--cram_write_options version=3.0,compressor=rans"
     String rw_xargs = "--cram_write_options version=3.0,compressor=rans"
+    String alnstat_adapter_seq = ""  # The adapter sequence for the AlignmentStat algo
+    ## BQSR
     String qcal_xargs = ""
+    ## Variant calling
     String calling_driver_xargs = ""
     String calling_algo_xargs = "--pcr_indel_model none"
     File? dnascope_model
-    String alnstat_adapter_seq = ""  # The adapter sequence for the AlignmentStat algo
 
     # Sentieon license configuration
     File? sentieon_license_file
@@ -77,47 +89,55 @@ workflow sentieon_germline {
     Int? calling_disk_size
   }
 
-  Array[Int] pair_range = range(length(r1_fastq))
-  scatter(i in pair_range) {
-    call Alignment.SentieonBWA {
-      input:
-        r1_fastq = r1_fastq[i],
-        r2_fastq = r2_fastq[i],
-        read_group = read_groups[i],
+  # Optional BAM realignment
+  if (realign_input) {
+    Array[Int] bam_range = range(length(bam))
 
-        sample_name = sample_name,
-        bwa_xargs = bwa_xargs,
-        bwa_karg = bwa_karg,
-        sort_xargs = sort_xargs,
+    # bwa index files are required for realignment
+    File bwa_ref_bwt = select_first([ref_bwt])
+    File bwa_ref_sa = select_first([ref_sa])
+    File bwa_ref_amb = select_first([ref_amb])
+    File bwa_ref_ann = select_first([ref_ann])
+    File bwa_ref_pac = select_first([ref_pac])
 
-        ref_fasta = ref_fasta,
-        ref_fai = ref_fai,
-        ref_alt = ref_alt,
-        ref_bwt = ref_bwt,
-        ref_sa = ref_sa,
-        ref_amb = ref_amb,
-        ref_ann = ref_ann,
-        ref_pac = ref_pac,
+    scatter(i in bam_range) {
+      call Alignment.RealignBam {
+        input:
+          bam = bam[i],
 
-        sentieon_license_file = sentieon_license_file,
-        sentieon_license_server = sentieon_license_server,
+          sample_name = sample_name,
+          bwa_xargs = bwa_xargs,
+          bwa_karg = bwa_karg,
+          sort_xargs = sort_xargs,
 
-        n_threads = bwa_n_threads,
-        memory = bwa_memory,
-        disk_size = bwa_disk_size,
-        preemptible_tries = preemptible_tries,
-        sentieon_docker = sentieon_docker,
+          ref_fasta = ref_fasta,
+          ref_fai = ref_fai,
+          ref_alt = ref_alt,
+          ref_bwt = bwa_ref_bwt,
+          ref_sa = bwa_ref_sa,
+          ref_amb = bwa_ref_amb,
+          ref_ann = bwa_ref_ann,
+          ref_pac = bwa_ref_pac,
+
+          sentieon_license_file = sentieon_license_file,
+          sentieon_license_server = sentieon_license_server,
+
+          n_threads = bwa_n_threads,
+          memory = bwa_memory,
+          disk_size = bwa_disk_size,
+          preemptible_tries = preemptible_tries,
+          sentieon_docker = sentieon_docker,
+      }
     }
   }
-
-  Array[File] bwa_aligned_reads = flatten(SentieonBWA.aligned_reads)
-  Array[File] bwa_aligned_index = flatten(SentieonBWA.aligned_index)
+  Array[File] input_aln = select_first([RealignBam.aligned_reads, bam])
+  Array[File] input_aln_idx = select_first([RealignBam.aligned_index, bam_index])
 
   if (run_dedup_and_qc) {
     call Preprocessing.DedupAndQc {
       input:
-        bams = bwa_aligned_reads,
-        bams_idx = bwa_aligned_index,
+        bams = input_aln,
+        bams_idx = input_aln_idx,
         output_cram = output_cram,
 
         sample_name = sample_name,
@@ -138,11 +158,11 @@ workflow sentieon_germline {
         sentieon_docker = sentieon_docker,
     }
   }
-  if (!run_dedup_and_qc) {
+  if (!run_dedup_and_qc && run_readwriter) {
     call Preprocessing.ReadWriter {
       input:
-        bams = bwa_aligned_reads,
-        bams_idx = bwa_aligned_index,
+        bams = input_aln,
+        bams_idx = input_aln_idx,
         output_cram = output_cram,
 
         sample_name = sample_name,
@@ -162,10 +182,14 @@ workflow sentieon_germline {
     }
   }
 
-  File merged_aln = select_first([DedupAndQc.aligned_reads, ReadWriter.aligned_reads])
-  File merged_aln_idx = select_first([DedupAndQc.aligned_index, ReadWriter.aligned_index])
-  Array[File] calling_alns = [merged_aln]
-  Array[File] calling_idxs = [merged_aln_idx]
+  if (run_dedup_and_qc || run_readwriter) {
+     File merged_aln = select_first([DedupAndQc.aligned_reads, ReadWriter.aligned_reads])
+     File merged_aln_idx = select_first([DedupAndQc.aligned_index, ReadWriter.aligned_index])
+     Array[File] merged_aln_files = [merged_aln]
+     Array[File] merged_aln_idxs = [merged_aln_idx]
+  }
+  Array[File] calling_alns = select_first([merged_aln_files, bam])
+  Array[File] calling_idxs = select_first([merged_aln_idxs, bam_index])
 
   if (run_bqsr) {
     call Preprocessing.QualCal {
@@ -192,13 +216,16 @@ workflow sentieon_germline {
         sentieon_docker = sentieon_docker,
     }
   }
+  if (run_bqsr || defined(bqsr_table)) {
+    File calling_bqsr_table = select_first([bqsr_table, QualCal.bqsr_table])
+  }
 
   if (run_calling) {
     call Calling.GermlineCalling {
       input:
         aligned_reads = calling_alns,
         aligned_index = calling_idxs,
-        bqsr_table = QualCal.bqsr_table,
+        bqsr_table = calling_bqsr_table,
         calling_intervals = calling_intervals,
         dbsnp_vcf = dbsnp_vcf,
         dbsnp_vcf_tbi = dbsnp_vcf_tbi,
@@ -223,7 +250,8 @@ workflow sentieon_germline {
         sentieon_docker = sentieon_docker,
     }
 
-    if (defined(dnascope_model) && calling_algo == "DNAscope") {
+    if (defined(dnascope_model)) {
+      # DNAModelApply is a no-op if calling_algo != 'DNAscope'
       call Calling.DNAModelApply {
         input:
           vcf = GermlineCalling.calls_vcf,
@@ -251,8 +279,8 @@ workflow sentieon_germline {
 
   output {
     # Core alignment files
-    File aligned_reads = merged_aln
-    File aligned_index = merged_aln_idx
+    File? aligned_reads = merged_aln
+    File? aligned_index = merged_aln_idx
 
     # DNAseq outputs
     File? calls_vcf = out_calls_vcf
@@ -274,3 +302,4 @@ workflow sentieon_germline {
     File? is_plot = DedupAndQc.is_plot
   }
 }
+

@@ -164,11 +164,14 @@ workflow sentieon_germline {
 
   File merged_aln = select_first([DedupAndQc.aligned_reads, ReadWriter.aligned_reads])
   File merged_aln_idx = select_first([DedupAndQc.aligned_index, ReadWriter.aligned_index])
+  Array[File] calling_alns = [merged_aln]
+  Array[File] calling_idxs = [merged_aln_idx]
+
   if (run_bqsr) {
     call Preprocessing.QualCal {
       input:
-        aligned_reads = merged_aln,
-        aligned_index = merged_aln_idx,
+        aligned_reads = calling_alns,
+        aligned_index = calling_idxs,
         bqsr_intervals = bqsr_intervals,
         bqsr_vcfs = bqsr_vcfs,
         bqsr_vcf_tbis = bqsr_vcf_tbis,
@@ -193,8 +196,8 @@ workflow sentieon_germline {
   if (run_calling) {
     call Calling.GermlineCalling {
       input:
-        aligned_reads = merged_aln,
-        aligned_index = merged_aln_idx,
+        aligned_reads = calling_alns,
+        aligned_index = calling_idxs,
         bqsr_table = QualCal.bqsr_table,
         calling_intervals = calling_intervals,
         dbsnp_vcf = dbsnp_vcf,

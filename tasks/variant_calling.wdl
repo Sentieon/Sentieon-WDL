@@ -3,8 +3,8 @@ version 1.0
 task GermlineCalling {
   input {
     # Input files
-    File aligned_reads
-    File aligned_index
+    Array[File] aligned_reads
+    Array[File] aligned_index
     File? bqsr_table
 
     # Reference genome files
@@ -67,6 +67,24 @@ task GermlineCalling {
       exit 1
     fi
 
+    # Ensure each input is adjecent to it's index
+    aln_files=("~{sep='" "' aligned_reads}")
+    aln_idxs=("~{sep='" "' aligned_index}")
+    input_str=""
+    for i in $(seq 1 ${#aln_files[@]}); do
+      i=$((i - 1))
+      aln="${aln_files[$i]}"
+      aln_suffix=".bam"
+      idx_suffix=".bam.bai"
+      if [[ $aln == *.cram ]]; then
+        aln_suffix=".cram"
+        idx_suffix=".cram.crai"
+      fi
+      ln -s "${aln_files[$i]}" ./input_"$i"."$aln_suffix"
+      ln -s "${aln_idxs[$i]}" ./input_"$i"."$idx_suffix"
+      input_str="$input_str -i ./input_$i.$aln_suffix"
+    done
+
     # Variant calling
     calling_intervals="~{default='' calling_intervals}"
     dbsnp_vcf="~{default='' dbsnp_vcf}"
@@ -75,7 +93,7 @@ task GermlineCalling {
     if [[ "~{calling_algo}" == "DNAscope" ]]; then
       dnascope_model="~{default="" dnascope_model}"
     fi
-    sentieon driver -r ~{ref_fasta} -i "~{aligned_reads}" \
+    sentieon driver -r ~{ref_fasta} $input_str \
       ${bqsr_table:+-q "$bqsr_table"} \
       ${calling_intervals:+--interval "$calling_intervals"} \
       ~{calling_driver_xargs} \

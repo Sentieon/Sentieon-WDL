@@ -195,8 +195,8 @@ task ReadWriter {
 task QualCal {
   input {
     # Input files
-    File aligned_reads
-    File aligned_index
+    Array[File] aligned_reads
+    Array[File] aligned_index
 
     # Reference genome files
     File ref_fasta
@@ -246,10 +246,28 @@ task QualCal {
       exit 1
     fi
 
+    # Ensure each input is adjecent to it's index
+    aln_files=("~{sep='" "' aligned_reads}")
+    aln_idxs=("~{sep='" "' aligned_index}")
+    input_str=""
+    for i in $(seq 1 ${#aln_files[@]}); do
+      i=$((i - 1))
+      aln="${aln_files[$i]}"
+      aln_suffix=".bam"
+      idx_suffix=".bam.bai"
+      if [[ $aln == *.cram ]]; then
+        aln_suffix=".cram"
+        idx_suffix=".cram.crai"
+      fi
+      ln -s "${aln_files[$i]}" ./input_"$i"."$aln_suffix"
+      ln -s "${aln_idxs[$i]}" ./input_"$i"."$idx_suffix"
+      input_str="$input_str -i ./input_$i.$aln_suffix"
+    done
+
     # BQSR
     bqsr_intervals="~{default='' bqsr_intervals}"
     has_bqsr_vcfs=~{true="true" false="" has_bqsr_vcfs}
-    sentieon driver -r ~{ref_fasta} -i "~{aligned_reads}" \
+    sentieon driver -r ~{ref_fasta} $input_str \
       ${bqsr_intervals:+--interval "$bqsr_intervals"} --algo QualCal \
       ${has_bqsr_vcfs:+-k }~{sep=" -k " bqsr_vcfs} \
       ~{qcal_xargs} "~{sample_name}_recal.table"

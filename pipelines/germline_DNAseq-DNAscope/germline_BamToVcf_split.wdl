@@ -40,6 +40,8 @@ workflow sentieon_germline {
     ## Dedup and merged BAM output
     Boolean run_dedup_and_qc = false # Mark duplicates and perform QC in addition to alignment
     Boolean output_cram = true
+    ## Run an optional ReadWriter step
+    Boolean run_readwriter = false
     ## BQSR
     Boolean run_bqsr = false # Calibrate a BQSR model and use it during variant calling
     ## Variant calling
@@ -156,7 +158,7 @@ workflow sentieon_germline {
         sentieon_docker = sentieon_docker,
     }
   }
-  if (!run_dedup_and_qc) {
+  if (!run_dedup_and_qc && run_readwriter) {
     call Preprocessing.ReadWriter {
       input:
         bams = input_aln,
@@ -180,13 +182,20 @@ workflow sentieon_germline {
     }
   }
 
-  File merged_aln = select_first([DedupAndQc.aligned_reads, ReadWriter.aligned_reads])
-  File merged_aln_idx = select_first([DedupAndQc.aligned_index, ReadWriter.aligned_index])
+  if (run_dedup_and_qc || run_readwriter) {
+     File merged_aln = select_first([DedupAndQc.aligned_reads, ReadWriter.aligned_reads])
+     File merged_aln_idx = select_first([DedupAndQc.aligned_index, ReadWriter.aligned_index])
+     Array[File] merged_aln_files = [merged_aln]
+     Array[File] merged_aln_idxs = [merged_aln_idx]
+  }
+  Array[File] calling_alns = select_first([merged_aln_files, bam])
+  Array[File] calling_idxs = select_first([merged_aln_idxs, bam_index])
+
   if (run_bqsr) {
     call Preprocessing.QualCal {
       input:
-        aligned_reads = merged_aln,
-        aligned_index = merged_aln_idx,
+        aligned_reads = calling_alns,
+        aligned_index = calling_idxs,
         bqsr_intervals = bqsr_intervals,
         bqsr_vcfs = bqsr_vcfs,
         bqsr_vcf_tbis = bqsr_vcf_tbis,
@@ -214,8 +223,8 @@ workflow sentieon_germline {
   if (run_calling) {
     call Calling.GermlineCalling {
       input:
-        aligned_reads = merged_aln,
-        aligned_index = merged_aln_idx,
+        aligned_reads = calling_alns,
+        aligned_index = calling_idxs,
         bqsr_table = calling_bqsr_table,
         calling_intervals = calling_intervals,
         dbsnp_vcf = dbsnp_vcf,
@@ -270,8 +279,8 @@ workflow sentieon_germline {
 
   output {
     # Core alignment files
-    File aligned_reads = merged_aln
-    File aligned_index = merged_aln_idx
+    File? aligned_reads = merged_aln
+    File? aligned_index = merged_aln_idx
 
     # DNAseq outputs
     File? calls_vcf = out_calls_vcf

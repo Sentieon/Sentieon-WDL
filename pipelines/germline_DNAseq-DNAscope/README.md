@@ -4,19 +4,19 @@ WDL pipelines for germline variant calling
 ## Basic usage - Sentieon DNAseq
 The pipeline is tested with [Cromwell](https://github.com/broadinstitute/cromwell), but should be compatible with other tools for WDL executors. Here is the basic usage for Cromwell:
 ```sh
-java -Dconfig.file=<cromwell.config> -jar cromwell-83.jar run -i <inputs.json> <germline_fastqToVcf.wdl>
+java -Dconfig.file=<cromwell.config> -jar cromwell-83.jar run -i <inputs.json> <germline.wdl>
 ```
-We provide an example `inputs.json` file in the [germline_fastqToVcf.example_inputs.json](germline_fastqToVcf.example_inputs.json) file in this repository.
+We provide example `inputs.json` files in the [germline_fastqToVcf.example_inputs.json](germline_fastqToVcf.example_inputs.json) and [germline_BamToVcf.example_inputs.json](germline_BamToVcf.example_inputs.json) files in this repository.
 
 For more information on WDL, please see https://openwdl.org/.
 
 ### Using the `_split.wdl` pipeline
-We provide two implementations of pipelines in this repository, a standard implementation and a `_split.wdl` implementation. The `_split.wdl` implementation follows the more common approach of splitting the pipeline into multiple tasks, while the other WDL implements the full pipeline as a single task. Both implementations accept the same inputs and should produce identical output.
+We provide two implementations of some pipelines in this repository, a standard implementation and a `_split.wdl` implementation. The `_split.wdl` implementation follows the more common approach of splitting the pipeline into multiple tasks, while the other WDL implements the full pipeline as a single task. Both implementations accept the same inputs and should produce identical output.
 
-The standard pipeline is recommended for most use-cases, and will provide a faster overall turnaround time on large single machines due to reduced data transfer and scheduling overhead. The `_split.wdl` may be more cost-effective in environments with frequent machine preemption.
+The standard pipeline is recommended for most use-cases, and will provide a faster overall turnaround time on large machines due to reduced data transfer and scheduling overhead. The `_split.wdl` may be more cost-effective in environments with frequent machine preemption.
 
 ### Output files
-By default, the pipeline will output duplicate-marked read alignments in the CRAM format, called variants in the VCF format, a Sentieon BQSR table, and sample QC metrics and plots.
+By default, the fastq-to-VCF pipeline will output duplicate-marked read alignments in the CRAM format, called variants in the VCF format, a Sentieon BQSR table, and sample QC metrics and plots. The BAM-to-VCF pipeline will output called variants in the VCF format, with default arguments.
 
 As an alternative to the CRAM format, the pipeline may also output aligned reads in the BAM format by modifying the `inputs.json` file:
 ```json
@@ -27,7 +27,7 @@ Other supported pipelines and arguments are described below.
 
 ## Alternative pipelines
 
-The default arguments will run a Sentieon DNAseq pipeline for Fastq->VCF processing. The `inputs.json` file can be modified to perform different data processing operations.
+The default arguments will run a Sentieon DNAseq pipeline for Fastq->VCF or BAM/CRAM->VCF processing. The `inputs.json` file can be modified to perform different data processing operations.
 
 ### Sentieon DNAscope
 
@@ -47,16 +47,16 @@ You can find more information on Sentieon's DNAscope pipeline in Sentieon's [DNA
 
 ### gVCF output
 
-By default, the pipeline will output variants in the VCF format. The `inputs.json` file can be updated to output variants in the gVCF format:
+By default, both pipelines will output variants in the VCF format. The `inputs.json` file can be updated to output variants in the gVCF format:
 ```json
 "sentieon_germline.output_gvcf": true,
 ```
 
-gVCF output format is supported in both DNAseq and DNAscope pipelines.
+gVCF output format is supported in both Sentieon DNAseq and DNAscope.
 
 ### Alignment and pre-processing only
 
-By default, the pipeline will implement the full Sentieon DNAseq pipeline from Fastq->VCF. The `inputs.json` file can be updated to skip variant calling:
+By default, the fastqToVcf pipeline will implement the full Sentieon DNAseq pipeline from Fastq->VCF. The `inputs.json` file can be updated to skip variant calling:
 ```json
 "sentieon_germline.run_calling": false,
 ```
@@ -67,4 +67,14 @@ It is also possible to skip duplicate marking and metrics collection in addition
 "sentieon_germline.run_calling": false,
 "sentieon_germline.run_bqsr": false,
 "sentieon_germline.run_dedup_and_qc": false,
+```
+
+### BAM realignment and pre-processing
+
+By default, the BamToVcf pipeline will only perform variant calling from an aligned BAM/CRAM file. The following arguments can be set to re-align an input BAM file to the provided reference genome and perform duplicate marking and BQSR:
+```json
+"sentieon_germline.realign_input": false,
+"sentieon_germline.run_dedup_and_qc": false,
+"sentieon_germline.run_bqsr": false,
+"sentieon_germline.run_calling": false,
 ```

@@ -153,14 +153,19 @@ def test_germline_fastq_dnascope(downloaded_quickstart, downloaded_model):
         subprocess.run(cmd, shell=True, check=True)
         os.unlink(test_json.name)
 
-def test_germline_bam(downloaded_quickstart, quickstart_bam):
+def test_germline_bam(downloaded_quickstart, quickstart_bam, downloaded_model):
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as test_json, tempfile.NamedTemporaryFile(mode='w', suffix=".bed", delete=False) as test_bed:
         test_json.close()
 
         print("chr22	10000000	40000000", file=test_bed)
         test_bed.close()
 
-        d = {**downloaded_quickstart, **set_licsrvr_docker(), **quickstart_bam}
+        d = {
+            **downloaded_quickstart,
+            **set_licsrvr_docker(),
+            **quickstart_bam,
+            **downloaded_model,
+        }
         d["sentieon_germline.bqsr_intervals"] = test_bed.name
         d["sentieon_germline.calling_intervals"] = test_bed.name
 
@@ -177,7 +182,7 @@ def test_germline_bam(downloaded_quickstart, quickstart_bam):
         os.unlink(test_json.name)
         os.unlink(test_bed.name)
 
-def test_germline_bam_dnascope(downloaded_quickstart, downloaded_model, quickstart_bam):
+def test_germline_bam_dnascope(downloaded_quickstart, quickstart_bam):
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as test_json:
         test_json.close()
         d = {**downloaded_quickstart, **set_licsrvr_docker(), **quickstart_bam}
